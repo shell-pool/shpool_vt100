@@ -268,9 +268,28 @@ impl Screen {
         contents
     }
 
+    /// Simillar to contents_formatted, except that rather than
+    /// returning bytes to redraw the currently visible screen, it
+    /// returns sufficient bytes to redraw the last `rows` rows of
+    /// output. You do not need to adjust the scrollback position
+    /// to use this to get at data in the scrollback buffer.
+    #[must_use]
+    pub fn last_n_rows_contents_formatted(&self, rows: u16) -> Vec<u8> {
+        let mut contents = vec![];
+        self.write_contents_formatted_from_rows(
+            self.grid().last_n_rows(rows), &mut contents);
+        contents
+    }
+
     fn write_contents_formatted(&self, contents: &mut Vec<u8>) {
+        self.write_contents_formatted_from_rows(self.grid().visible_rows(), contents)
+    }
+
+    fn write_contents_formatted_from_rows<'a, R>(&self, rows: R, contents: &mut Vec<u8>)
+        where R: Iterator<Item = &'a crate::row::Row>
+    {
         crate::term::HideCursor::new(self.hide_cursor()).write_buf(contents);
-        let prev_attrs = self.grid().write_contents_formatted(contents);
+        let prev_attrs = self.grid().write_contents_formatted_from_rows(rows, contents);
         self.attrs.write_escape_code_diff(contents, &prev_attrs);
     }
 
