@@ -4,7 +4,7 @@ use std::io::Read as _;
 
 #[test]
 fn formatted() {
-    let mut parser = vt100::Parser::default();
+    let mut parser = shpool_vt100::Parser::default();
     helpers::contents_formatted_reproduces_screen(parser.screen());
     assert_eq!(
         parser.screen().contents_formatted(),
@@ -67,7 +67,7 @@ fn formatted() {
 
 #[test]
 fn empty_cells() {
-    let mut parser = vt100::Parser::default();
+    let mut parser = shpool_vt100::Parser::default();
     parser.process(b"\x1b[5C\x1b[32m bar\x1b[H\x1b[31mfoo");
     helpers::contents_formatted_reproduces_screen(parser.screen());
     assert_eq!(parser.screen().contents(), "foo   bar");
@@ -79,7 +79,7 @@ fn empty_cells() {
 
 #[test]
 fn cursor_positioning() {
-    let mut parser = vt100::Parser::default();
+    let mut parser = shpool_vt100::Parser::default();
 
     let screen = parser.screen().clone();
     parser.process(b":\x1b[K");
@@ -150,7 +150,7 @@ fn cursor_positioning() {
 
 #[test]
 fn rows() {
-    let mut parser = vt100::Parser::default();
+    let mut parser = shpool_vt100::Parser::default();
     let screen1 = parser.screen().clone();
     assert_eq!(
         screen1.rows(0, 80).collect::<Vec<String>>(),
@@ -454,7 +454,7 @@ fn rows() {
 
 #[test]
 fn contents_between() {
-    let mut parser = vt100::Parser::default();
+    let mut parser = shpool_vt100::Parser::default();
     assert_eq!(parser.screen().contents_between(0, 0, 0, 0), "");
     assert_eq!(parser.screen().contents_between(0, 0, 5, 0), "\n\n\n\n\n");
     assert_eq!(parser.screen().contents_between(5, 0, 0, 0), "");
@@ -488,7 +488,7 @@ fn contents_between() {
 
 #[test]
 fn diff_basic() {
-    let mut parser = vt100::Parser::default();
+    let mut parser = shpool_vt100::Parser::default();
     let screen1 = parser.screen().clone();
     parser.process(b"\x1b[5C\x1b[32m bar");
     let screen2 = parser.screen().clone();
@@ -521,7 +521,7 @@ fn diff_basic() {
 
 #[test]
 fn diff_erase() {
-    let mut parser = vt100::Parser::default();
+    let mut parser = shpool_vt100::Parser::default();
 
     let screen = parser.screen().clone();
     parser.process(b"foo\x1b[5;5Hbar");
@@ -552,7 +552,7 @@ fn diff_crawl_full() {
 }
 
 fn diff_crawl(i: usize) {
-    let mut parser = vt100::Parser::default();
+    let mut parser = shpool_vt100::Parser::default();
     let screens: Vec<_> = (1..=i)
         .map(|i| {
             let mut file =

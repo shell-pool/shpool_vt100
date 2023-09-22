@@ -27,7 +27,7 @@ fn main() {
         input_file.write_all(&input).unwrap();
 
         prev_input.extend(input);
-        let mut term = vt100::Parser::default();
+        let mut term = shpool_vt100::Parser::default();
         term.process(&prev_input);
         let screen = helpers::FixtureScreen::from_screen(term.screen());
 

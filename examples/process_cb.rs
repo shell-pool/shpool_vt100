@@ -1,7 +1,7 @@
 use std::io::Read as _;
 
 struct Callbacks;
-impl vt100::Callbacks for Callbacks {}
+impl shpool_vt100::Callbacks for Callbacks {}
 
 fn read_frames() -> impl Iterator<Item = Vec<u8>> {
     (1..=7625).map(|i| {
@@ -15,7 +15,7 @@ fn read_frames() -> impl Iterator<Item = Vec<u8>> {
 }
 
 fn process_frames(frames: &[Vec<u8>]) {
-    let mut parser = vt100::Parser::default();
+    let mut parser = shpool_vt100::Parser::default();
     for frame in frames {
         parser.process_cb(frame, &mut Callbacks);
     }

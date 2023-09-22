@@ -1,9 +1,13 @@
 # Changelog
 
-## [Unreleased]
+## FORK: [0.1.0] - 2023-09-22
+
+Crate forked and renamed to `shpool_vt100`.
 
 ### Added
 
+* `Screen::last_n_rows_contents_formatted`, which allows generating a formatted
+   contents buffer for more than just the current screen.
 * `Parser::process_cb`, which works the same as `Parser::process` except that
   it calls callbacks during parsing when it finds a terminal escape which is
   potentially useful but not something that affects the screen itself.

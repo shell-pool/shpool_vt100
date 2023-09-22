@@ -55,8 +55,8 @@ impl<'a> std::fmt::Debug for Bytes<'a> {
 }
 
 pub fn compare_screens(
-    got: &vt100::Screen,
-    expected: &vt100::Screen,
+    got: &shpool_vt100::Screen,
+    expected: &shpool_vt100::Screen,
 ) -> bool {
     let (rows, cols) = got.size();
 
@@ -80,8 +80,8 @@ pub fn compare_screens(
         is!(got.row_wrapped(i), expected.row_wrapped(i));
     }
     is!(
-        Bytes(&got.contents_diff(vt100::Parser::default().screen())),
-        Bytes(&expected.contents_diff(vt100::Parser::default().screen()))
+        Bytes(&got.contents_diff(shpool_vt100::Parser::default().screen())),
+        Bytes(&expected.contents_diff(shpool_vt100::Parser::default().screen()))
     );
 
     is!(Bytes(&got.contents_diff(got)), Bytes(b""));
@@ -117,30 +117,30 @@ pub fn compare_screens(
 }
 
 pub fn contents_formatted_reproduces_state(input: &[u8]) -> bool {
-    let mut parser = vt100::Parser::default();
+    let mut parser = shpool_vt100::Parser::default();
     parser.process(input);
     contents_formatted_reproduces_screen(parser.screen())
 }
 
 pub fn rows_formatted_reproduces_state(input: &[u8]) -> bool {
-    let mut parser = vt100::Parser::default();
+    let mut parser = shpool_vt100::Parser::default();
     parser.process(input);
     rows_formatted_reproduces_screen(parser.screen())
 }
 
-pub fn contents_formatted_reproduces_screen(screen: &vt100::Screen) -> bool {
+pub fn contents_formatted_reproduces_screen(screen: &shpool_vt100::Screen) -> bool {
     let mut new_input = screen.contents_formatted();
     new_input.extend(screen.input_mode_formatted());
     new_input.extend(screen.title_formatted());
     assert_eq!(new_input, screen.state_formatted());
-    let mut new_parser = vt100::Parser::default();
+    let mut new_parser = shpool_vt100::Parser::default();
     new_parser.process(&new_input);
     let got_screen = new_parser.screen().clone();
 
     compare_screens(&got_screen, screen)
 }
 
-pub fn rows_formatted_reproduces_screen(screen: &vt100::Screen) -> bool {
+pub fn rows_formatted_reproduces_screen(screen: &shpool_vt100::Screen) -> bool {
     let mut new_input = vec![];
     let mut wrapped = false;
     for (idx, row) in screen.rows_formatted(0, 80).enumerate() {
@@ -156,7 +156,7 @@ pub fn rows_formatted_reproduces_screen(screen: &vt100::Screen) -> bool {
     new_input.extend(screen.attributes_formatted());
     new_input.extend(screen.input_mode_formatted());
     new_input.extend(screen.title_formatted());
-    let mut new_parser = vt100::Parser::default();
+    let mut new_parser = shpool_vt100::Parser::default();
     new_parser.process(&new_input);
     let got_screen = new_parser.screen().clone();
 
@@ -180,7 +180,7 @@ pub fn contents_diff_reproduces_state_from(
     input: &[u8],
     prev_input: &[u8],
 ) -> bool {
-    let mut parser = vt100::Parser::default();
+    let mut parser = shpool_vt100::Parser::default();
     parser.process(prev_input);
     let prev_screen = parser.screen().clone();
     parser.process(input);
@@ -189,8 +189,8 @@ pub fn contents_diff_reproduces_state_from(
 }
 
 pub fn contents_diff_reproduces_state_from_screens(
-    prev_screen: &vt100::Screen,
-    screen: &vt100::Screen,
+    prev_screen: &shpool_vt100::Screen,
+    screen: &shpool_vt100::Screen,
 ) -> bool {
     let mut diff_input = screen.contents_diff(prev_screen);
     diff_input.extend(screen.input_mode_diff(prev_screen));
@@ -201,7 +201,7 @@ pub fn contents_diff_reproduces_state_from_screens(
     diff_prev_input.extend(screen.input_mode_formatted());
     diff_prev_input.extend(screen.title_formatted());
 
-    let mut new_parser = vt100::Parser::default();
+    let mut new_parser = shpool_vt100::Parser::default();
     new_parser.process(&diff_prev_input);
     new_parser.process(&diff_input);
     let got_screen = new_parser.screen().clone();
@@ -211,8 +211,8 @@ pub fn contents_diff_reproduces_state_from_screens(
 
 #[allow(dead_code)]
 pub fn assert_contents_diff_reproduces_state_from_screens(
-    prev_screen: &vt100::Screen,
-    screen: &vt100::Screen,
+    prev_screen: &shpool_vt100::Screen,
+    screen: &shpool_vt100::Screen,
 ) {
     assert!(contents_diff_reproduces_state_from_screens(
         prev_screen,

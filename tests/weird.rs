@@ -7,7 +7,7 @@ fn intermediate_control() {
 
 #[test]
 fn params() {
-    let mut parser = vt100::Parser::default();
+    let mut parser = shpool_vt100::Parser::default();
     parser.process(b"\x1b[::::::::::::::::::::::::::::::::@");
     parser.process(b"\x1b[::::::::::::::::::::::::::::::::H");
     parser.process(b"\x1b[::::::::::::::::::::::::::::::::r");

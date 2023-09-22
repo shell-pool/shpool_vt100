@@ -7,7 +7,7 @@ fn absolute_movement() {
 
 #[test]
 fn row_clamp() {
-    let mut vt = vt100::Parser::default();
+    let mut vt = shpool_vt100::Parser::default();
     assert_eq!(vt.screen().cursor_position(), (0, 0));
     vt.process(b"\x1b[15d");
     assert_eq!(vt.screen().cursor_position(), (14, 0));
@@ -48,17 +48,17 @@ fn scroll() {
 #[test]
 fn xtwinops() {
     struct Callbacks;
-    impl vt100::Callbacks for Callbacks {
+    impl shpool_vt100::Callbacks for Callbacks {
         fn resize(
             &mut self,
-            screen: &mut vt100::Screen,
+            screen: &mut shpool_vt100::Screen,
             (rows, cols): (u16, u16),
         ) {
             screen.set_size(rows, cols);
         }
     }
 
-    let mut vt = vt100::Parser::default();
+    let mut vt = shpool_vt100::Parser::default();
     assert_eq!(vt.screen().size(), (24, 80));
     vt.process_cb(b"\x1b[8;24;80t", &mut Callbacks);
     assert_eq!(vt.screen().size(), (24, 80));
@@ -69,7 +69,7 @@ fn xtwinops() {
     vt.process_cb(b"\x1b[8;24t", &mut Callbacks);
     assert_eq!(vt.screen().size(), (24, 24));
 
-    let mut vt = vt100::Parser::default();
+    let mut vt = shpool_vt100::Parser::default();
     assert_eq!(vt.screen().size(), (24, 80));
     vt.process_cb(b"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", &mut Callbacks);
     assert_eq!(vt.screen().rows(0, 80).next().unwrap(), "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");

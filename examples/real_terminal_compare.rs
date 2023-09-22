@@ -1,5 +1,4 @@
 use std::io::{Read as _, Write as _};
-use std::os::unix::io::AsRawFd as _;
 
 #[path = "../tests/helpers/mod.rs"]
 mod helpers;
@@ -10,11 +9,10 @@ fn main() {
     let mut stdin = std::io::stdin();
     let mut stdout = std::io::stdout();
 
-    let stdin_fd = std::io::stdin().as_raw_fd();
-    let mut termios = nix::sys::termios::tcgetattr(stdin_fd).unwrap();
+    let mut termios = nix::sys::termios::tcgetattr(std::io::stdin()).unwrap();
     nix::sys::termios::cfmakeraw(&mut termios);
     nix::sys::termios::tcsetattr(
-        stdin_fd,
+        std::io::stdin(),
         nix::sys::termios::SetArg::TCSANOW,
         &termios,
     )
@@ -39,7 +37,7 @@ fn main() {
     stdout.write_all(b"\x1b[H\x1b[J").unwrap();
     stdout.flush().unwrap();
 
-    let mut parser = vt100::Parser::new(size.0, size.1, 0);
+    let mut parser = shpool_vt100::Parser::new(size.0, size.1, 0);
     let mut buf = [0u8; 4096];
     let mut screen = parser.screen().clone();
     let mut idx = 0;

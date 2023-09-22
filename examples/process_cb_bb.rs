@@ -1,20 +1,20 @@
 use std::io::Read as _;
 
 struct Callbacks;
-impl vt100::Callbacks for Callbacks {
-    fn audible_bell(&mut self, screen: &mut vt100::Screen) {
+impl shpool_vt100::Callbacks for Callbacks {
+    fn audible_bell(&mut self, screen: &mut shpool_vt100::Screen) {
         std::hint::black_box(screen);
     }
 
-    fn visual_bell(&mut self, screen: &mut vt100::Screen) {
+    fn visual_bell(&mut self, screen: &mut shpool_vt100::Screen) {
         std::hint::black_box(screen);
     }
 
-    fn resize(&mut self, screen: &mut vt100::Screen, request: (u16, u16)) {
+    fn resize(&mut self, screen: &mut shpool_vt100::Screen, request: (u16, u16)) {
         std::hint::black_box((screen, request));
     }
 
-    fn error(&mut self, screen: &mut vt100::Screen) {
+    fn error(&mut self, screen: &mut shpool_vt100::Screen) {
         std::hint::black_box(screen);
     }
 }
@@ -31,7 +31,7 @@ fn read_frames() -> impl Iterator<Item = Vec<u8>> {
 }
 
 fn process_frames(frames: &[Vec<u8>]) {
-    let mut parser = vt100::Parser::default();
+    let mut parser = shpool_vt100::Parser::default();
     for frame in frames {
         parser.process_cb(frame, &mut Callbacks);
     }
