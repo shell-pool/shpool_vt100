@@ -61,3 +61,19 @@ fn vb() {
 fn decsc() {
     helpers::fixture("decsc");
 }
+
+#[test]
+fn restore_out_of_bounds_pos() {
+    let mut parser = shpool_vt100::Parser::new(5, 10, 20);
+
+    // move cursor to the bottom right
+    parser.process(b"\n\n\n\n\n\n\nxxxxxxxx");
+
+    // save cursor
+    parser.process(b"\x1b7");
+
+    parser.screen_mut().set_size(2, 2);
+
+    // restore cursor
+    parser.process(b"\x1b8");
+}
