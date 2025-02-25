@@ -17,7 +17,7 @@ include = ["src/**/*", "LICENSE", "README.md", "CHANGELOG.md"]
 itoa = "1"
 log = "0.4"
 unicode-width = "0.1"
-vte = "0.12"
+vte = "0.15"
 
 [dev-dependencies]
 nix = { version = "0.27", features = ["term"] }
