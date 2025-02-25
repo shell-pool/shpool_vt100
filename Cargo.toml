@@ -1,6 +1,6 @@
 [package]
 name = "shpool_vt100"
-version = "0.1.2"
+version = "0.1.3"
 authors = ["Jesse Luehrs <doy@tozt.net>", "Ethan Pailes <ethan@pailes.org>"]
 edition = "2021"
 
