@@ -129,35 +129,46 @@ impl Grid {
 
     /// Return the last n rows, unless there is insufficient scrollback
     /// to do so, in which case, return as many rows as possible.
-    pub fn last_n_rows(&self, rows: u16) -> impl Iterator<Item = &crate::row::Row> {
-        let rows = rows as usize;
-        let (scrollback_rows, rows_rows) = if rows < self.rows.len() {
-            (0, rows)
-        } else {
-            (rows - self.rows.len(), self.rows.len())
-        };
-
-        // At this point, rows_rows is always <= self.rows.len() by construction,
-        // but that might not be the case for scrollback_rows. We can't skip
-        // a negative number of items, so we need to trim.
-        assert!(rows_rows <= self.rows.len());
-        let scrollback_skip = if scrollback_rows < self.scrollback.len() {
-            self.scrollback.len() - scrollback_rows
-        } else {
-            0
-        };
-
-        let rows_skip = if (self.pos.row as usize) < rows_rows {
-            0
-        } else {
-            self.pos.row as usize - rows_rows
-        };
-        assert!(rows_skip + rows_rows <= self.rows.len());
-
+    /// The last `rows` rows of output: the rows of the screen up to and
+    /// including the cursor's row, preceded, if there are not enough of
+    /// those, by the end of the scrollback. Rows below the cursor are not
+    /// included, since output has not reached them.
+    pub fn last_n_rows(
+        &self,
+        rows: u16,
+    ) -> impl Iterator<Item = &crate::row::Row> {
+        let (from_scrollback, from_screen) = self.last_n_rows_split(rows);
+        let end = self.last_output_row_end();
         self.scrollback
             .iter()
-            .skip(scrollback_skip)
-            .chain(self.rows.iter().skip(rows_skip).take(rows_rows))
+            .skip(self.scrollback.len() - from_scrollback)
+            .chain(self.rows.iter().skip(end - from_screen).take(from_screen))
+    }
+
+    /// The row, counting from the first of `last_n_rows(rows)`, that the
+    /// cursor is on: the last of them.
+    pub fn last_n_rows_cursor_row(&self, rows: u16) -> u16 {
+        let (from_scrollback, from_screen) = self.last_n_rows_split(rows);
+        // there are at most `rows` of them, so this fits in a u16
+        (from_scrollback + from_screen)
+            .saturating_sub(1)
+            .try_into()
+            .unwrap()
+    }
+
+    // How many of `last_n_rows(rows)` come from the scrollback, and how
+    // many from the screen.
+    fn last_n_rows_split(&self, rows: u16) -> (usize, usize) {
+        let wanted = usize::from(rows);
+        let from_screen = wanted.min(self.last_output_row_end());
+        let from_scrollback =
+            (wanted - from_screen).min(self.scrollback.len());
+        (from_scrollback, from_screen)
+    }
+
+    // One past the cursor's row: where the output on the screen ends.
+    fn last_output_row_end(&self) -> usize {
+        (usize::from(self.pos.row) + 1).min(self.rows.len())
     }
 
     pub fn visible_rows(&self) -> impl Iterator<Item = &crate::row::Row> {
@@ -246,9 +257,12 @@ impl Grid {
     ///
     /// To write contents describing the currently visible screen,
     /// pass `self.visible_rows()` as the rows iterator.
+    /// Writes `rows` from the top of a cleared screen, then puts the cursor
+    /// on `cursor_row` of them (at the cursor's column).
     pub fn write_contents_formatted_from_rows<'a, R>(
         &self,
         rows: R,
+        cursor_row: u16,
         contents: &mut Vec<u8>,
     ) -> crate::attrs::Attrs
         where R: Iterator<Item = &'a crate::row::Row>
@@ -277,10 +291,11 @@ impl Grid {
             wrapping = row.wrapped();
         }
 
-        self.write_cursor_position_formatted(
+        self.write_cursor_position_formatted_at(
             contents,
             Some(prev_pos),
             Some(prev_attrs),
+            cursor_row,
         );
 
         prev_attrs
@@ -333,6 +348,34 @@ impl Grid {
         prev_pos: Option<Pos>,
         prev_attrs: Option<crate::attrs::Attrs>,
     ) {
+        self.write_cursor_position_formatted_at(
+            contents,
+            prev_pos,
+            prev_attrs,
+            self.pos.row,
+        );
+    }
+
+    // As write_cursor_position_formatted, for a terminal where the cursor's
+    // row was drawn as row `cursor_row` (when only some rows were drawn).
+    // Cells are still looked up by their row here; only the positions that
+    // are written out are moved.
+    fn write_cursor_position_formatted_at(
+        &self,
+        contents: &mut Vec<u8>,
+        prev_pos: Option<Pos>,
+        prev_attrs: Option<crate::attrs::Attrs>,
+        cursor_row: u16,
+    ) {
+        let shift = i32::from(self.pos.row) - i32::from(cursor_row);
+        // where a row of ours was drawn; only called for rows that were
+        let shown_row = |row: u16| -> u16 {
+            (i32::from(row) - shift).try_into().unwrap()
+        };
+        let shown = |pos: Pos| Pos {
+            row: shown_row(pos.row),
+            col: pos.col,
+        };
         let prev_attrs = prev_attrs.unwrap_or_default();
         // writing a character to the last column of a row doesn't wrap the
         // cursor immediately - it waits until the next character is actually
@@ -363,10 +406,10 @@ impl Grid {
                 self.drawing_cell(pos).unwrap();
             if cell.has_contents() {
                 if let Some(prev_pos) = prev_pos {
-                    crate::term::MoveFromTo::new(prev_pos, pos)
+                    crate::term::MoveFromTo::new(prev_pos, shown(pos))
                         .write_buf(contents);
                 } else {
-                    crate::term::MoveTo::new(pos).write_buf(contents);
+                    crate::term::MoveTo::new(shown(pos)).write_buf(contents);
                 }
                 cell.attrs().write_escape_code_diff(contents, &prev_attrs);
                 contents.extend(cell.contents().as_bytes());
@@ -382,6 +425,10 @@ impl Grid {
                 // the end of a row.
                 let mut found = false;
                 for i in (0..self.pos.row).rev() {
+                    if i32::from(i) < shift {
+                        // rows above here were not drawn
+                        break;
+                    }
                     pos.row = i;
                     pos.col = self.size.cols - 1;
                     if self
@@ -407,11 +454,14 @@ impl Grid {
                         .unwrap();
                     if cell.has_contents() {
                         if let Some(prev_pos) = prev_pos {
-                            if prev_pos.row != i
+                            if prev_pos.row != shown_row(i)
                                 || prev_pos.col < self.size.cols
                             {
-                                crate::term::MoveFromTo::new(prev_pos, pos)
-                                    .write_buf(contents);
+                                crate::term::MoveFromTo::new(
+                                    prev_pos,
+                                    shown(pos),
+                                )
+                                .write_buf(contents);
                                 cell.attrs().write_escape_code_diff(
                                     contents,
                                     &prev_attrs,
@@ -423,7 +473,8 @@ impl Grid {
                                 );
                             }
                         } else {
-                            crate::term::MoveTo::new(pos).write_buf(contents);
+                            crate::term::MoveTo::new(shown(pos))
+                                .write_buf(contents);
                             cell.attrs().write_escape_code_diff(
                                 contents,
                                 &prev_attrs,
@@ -455,10 +506,10 @@ impl Grid {
                         col: self.size.cols - 1,
                     };
                     if let Some(prev_pos) = prev_pos {
-                        crate::term::MoveFromTo::new(prev_pos, pos)
+                        crate::term::MoveFromTo::new(prev_pos, shown(pos))
                             .write_buf(contents);
                     } else {
-                        crate::term::MoveTo::new(pos).write_buf(contents);
+                        crate::term::MoveTo::new(shown(pos)).write_buf(contents);
                     }
                     contents.push(b' ');
                     // we know that the cell has no contents, but it still may
@@ -480,10 +531,10 @@ impl Grid {
                 }
             }
         } else if let Some(prev_pos) = prev_pos {
-            crate::term::MoveFromTo::new(prev_pos, self.pos)
+            crate::term::MoveFromTo::new(prev_pos, shown(self.pos))
                 .write_buf(contents);
         } else {
-            crate::term::MoveTo::new(self.pos).write_buf(contents);
+            crate::term::MoveTo::new(shown(self.pos)).write_buf(contents);
         }
     }
 

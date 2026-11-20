@@ -577,3 +577,65 @@ fn diff_crawl(i: usize) {
         }
     }
 }
+
+// Restores the last `n` rows of `output`, written to a terminal of
+// `rows` x `cols`, into a fresh terminal, and returns what that terminal
+// then shows: its non-blank rows, and where its cursor is.
+fn restore_last_rows(
+    rows: u16,
+    cols: u16,
+    output: &[u8],
+    n: u16,
+) -> (Vec<String>, (u16, u16)) {
+    let mut parser = shpool_vt100::Parser::new(rows, cols, 100);
+    parser.process(output);
+    let restore = parser.screen().last_n_rows_contents_formatted(n);
+
+    let mut restored = shpool_vt100::Parser::new(24, cols, 0);
+    restored.process(&restore);
+    let mut shown: Vec<String> = restored.screen().rows(0, cols).collect();
+    while shown.last().is_some_and(String::is_empty) {
+        shown.pop();
+    }
+    (shown, restored.screen().cursor_position())
+}
+
+#[test]
+fn last_n_rows_ends_with_the_cursor_row() {
+    // More rows above the cursor than are asked for: the last n rows are
+    // the cursor's row and the n - 1 before it, and the cursor ends up
+    // on the last of them, not where it was on the old screen.
+    let (shown, cursor) = restore_last_rows(
+        24,
+        80,
+        b"banner 1\r\nbanner 2\r\nprompt> bar\r\nprompt> ",
+        2,
+    );
+    assert_eq!(shown, vec!["prompt> bar", "prompt> "]);
+    assert_eq!(cursor, (1, 8));
+}
+
+#[test]
+fn last_n_rows_with_fewer_rows_than_asked() {
+    let (shown, cursor) =
+        restore_last_rows(24, 80, b"prompt> bar\r\nprompt> ", 5);
+    assert_eq!(shown, vec!["prompt> bar", "prompt> "]);
+    assert_eq!(cursor, (1, 8));
+}
+
+#[test]
+fn last_n_rows_reaches_into_scrollback() {
+    // A 3 row screen that has scrolled: the 4 rows asked for are the
+    // whole screen and the last row that scrolled off it.
+    let (shown, cursor) =
+        restore_last_rows(3, 80, b"one\r\ntwo\r\nthree\r\nfour\r\n$ ", 4);
+    assert_eq!(shown, vec!["two", "three", "four", "$ "]);
+    assert_eq!(cursor, (3, 2));
+}
+
+#[test]
+fn last_n_rows_of_one_row() {
+    let (shown, cursor) = restore_last_rows(24, 80, b"one\r\ntwo\r\n$ ", 1);
+    assert_eq!(shown, vec!["$ "]);
+    assert_eq!(cursor, (0, 2));
+}

@@ -277,19 +277,35 @@ impl Screen {
     pub fn last_n_rows_contents_formatted(&self, rows: u16) -> Vec<u8> {
         let mut contents = vec![];
         self.write_contents_formatted_from_rows(
-            self.grid().last_n_rows(rows), &mut contents);
+            self.grid().last_n_rows(rows),
+            self.grid().last_n_rows_cursor_row(rows),
+            &mut contents,
+        );
         contents
     }
 
     fn write_contents_formatted(&self, contents: &mut Vec<u8>) {
-        self.write_contents_formatted_from_rows(self.grid().visible_rows(), contents)
+        self.write_contents_formatted_from_rows(
+            self.grid().visible_rows(),
+            self.grid().pos().row,
+            contents,
+        )
     }
 
-    fn write_contents_formatted_from_rows<'a, R>(&self, rows: R, contents: &mut Vec<u8>)
-        where R: Iterator<Item = &'a crate::row::Row>
+    fn write_contents_formatted_from_rows<'a, R>(
+        &self,
+        rows: R,
+        cursor_row: u16,
+        contents: &mut Vec<u8>,
+    ) where
+        R: Iterator<Item = &'a crate::row::Row>,
     {
         crate::term::HideCursor::new(self.hide_cursor()).write_buf(contents);
-        let prev_attrs = self.grid().write_contents_formatted_from_rows(rows, contents);
+        let prev_attrs = self.grid().write_contents_formatted_from_rows(
+            rows,
+            cursor_row,
+            contents,
+        );
         self.attrs.write_escape_code_diff(contents, &prev_attrs);
     }
 
