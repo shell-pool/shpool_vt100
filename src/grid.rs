@@ -118,7 +118,12 @@ impl Grid {
             } else {
                 self.saved_pos.row
             },
-            col: if self.saved_pos.col >= self.size.cols {
+            // A column of exactly size.cols is not out of bounds: it is
+            // where the cursor waits after writing to the last column,
+            // until the next character wraps it, and it must be kept.
+            // Only a column beyond that (the screen has shrunk since the
+            // save) is brought back onto the screen.
+            col: if self.saved_pos.col > self.size.cols {
                 self.size.cols - 1
             } else {
                 self.saved_pos.col
